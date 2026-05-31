@@ -27,6 +27,16 @@ npm run dev
 
 The app runs on `http://localhost:5173`.
 
+## Mobile
+
+```bash
+cd mobile
+flutter pub get
+flutter run --dart-define=API_URL=http://10.0.2.2:8080
+```
+
+Use `10.0.2.2` for the Android emulator. For a physical phone, replace it with your computer's LAN IP, for example `http://192.168.1.20:8080`.
+
 ## Docker
 
 ```bash
