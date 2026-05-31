@@ -17,6 +17,8 @@ Required services/config:
 - `MONGODB_URI`, for example `mongodb://localhost:27017/expense_tracker`
 - `JWT_SECRET` should be a long random secret in production
 
+The backend also loads `backend/.env` automatically for local development.
+
 ## Frontend
 
 ```bash

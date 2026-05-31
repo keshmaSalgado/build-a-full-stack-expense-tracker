@@ -96,6 +96,11 @@ class AppState extends State<AppScope> {
     setState(() => user = null);
   }
 
+  Future<void> updateProfile(String name, String profilePictureUrl, String currency) async {
+    user = await api.updateProfile(name, profilePictureUrl, currency);
+    setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) => _AppInherited(state: this, child: widget.child);
 }
@@ -224,14 +229,14 @@ class ShellScreen extends StatefulWidget {
 
 class _ShellScreenState extends State<ShellScreen> {
   int index = 0;
-  final pages = const [DashboardPage(), TransactionsPage(), CategoriesPage(), ReportsPage()];
+  final pages = const [DashboardPage(), TransactionsPage(), CategoriesPage(), ReportsPage(), ProfilePage()];
 
   @override
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: Text(['Dashboard', 'Transactions', 'Categories', 'Reports'][index]),
+        title: Text(['Dashboard', 'Transactions', 'Categories', 'Reports', 'Profile'][index]),
         actions: [
           IconButton(
             onPressed: () => widget.onThemeChanged(!widget.darkMode),
@@ -246,9 +251,10 @@ class _ShellScreenState extends State<ShellScreen> {
         onDestinationSelected: (value) => setState(() => index = value),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard), label: 'Home'),
-          NavigationDestination(icon: Icon(Icons.swap_vert), label: 'Transactions'),
+          NavigationDestination(icon: Icon(Icons.swap_vert), label: 'Txn'),
           NavigationDestination(icon: Icon(Icons.category_outlined), selectedIcon: Icon(Icons.category), label: 'Categories'),
           NavigationDestination(icon: Icon(Icons.bar_chart), label: 'Reports'),
+          NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'Profile'),
         ],
       ),
     );
@@ -495,6 +501,132 @@ class ReportsPage extends StatefulWidget {
   State<ReportsPage> createState() => _ReportsPageState();
 }
 
+class ProfilePage extends StatefulWidget {
+  const ProfilePage({super.key});
+
+  @override
+  State<ProfilePage> createState() => _ProfilePageState();
+}
+
+class _ProfilePageState extends State<ProfilePage> {
+  final formKey = GlobalKey<FormState>();
+  final name = TextEditingController();
+  final profilePictureUrl = TextEditingController();
+  String currency = 'USD';
+  bool saving = false;
+
+  static const currencies = ['USD', 'EUR', 'GBP', 'LKR', 'INR', 'AUD', 'CAD', 'JPY'];
+
+  @override
+  void initState() {
+    super.initState();
+    final user = AppScope.read(context).user;
+    name.text = user?.name ?? '';
+    profilePictureUrl.text = user?.profilePictureUrl ?? '';
+    currency = currencies.contains(user?.currency) ? user!.currency : 'USD';
+  }
+
+  @override
+  void dispose() {
+    name.dispose();
+    profilePictureUrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final user = AppScope.of(context).user;
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Card(
+          elevation: 0,
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 34,
+                  backgroundColor: Colors.teal,
+                  backgroundImage: user?.profilePictureUrl?.isNotEmpty == true ? NetworkImage(user!.profilePictureUrl!) : null,
+                  child: user?.profilePictureUrl?.isNotEmpty == true ? null : Text((user?.name.isNotEmpty == true ? user!.name[0] : 'U').toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800)),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(user?.name ?? 'User', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+                      const SizedBox(height: 2),
+                      Text(user?.email ?? '', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Card(
+          elevation: 0,
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Form(
+              key: formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text('Profile Settings', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: name,
+                    decoration: const InputDecoration(labelText: 'Name', prefixIcon: Icon(Icons.person_outline)),
+                    validator: requiredValidator,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: profilePictureUrl,
+                    decoration: const InputDecoration(labelText: 'Profile Picture URL', prefixIcon: Icon(Icons.image_outlined)),
+                    keyboardType: TextInputType.url,
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: currency,
+                    decoration: const InputDecoration(labelText: 'Currency', prefixIcon: Icon(Icons.payments_outlined)),
+                    items: currencies.map((item) => DropdownMenuItem(value: item, child: Text(item))).toList(),
+                    onChanged: (value) => setState(() => currency = value ?? 'USD'),
+                  ),
+                  const SizedBox(height: 18),
+                  FilledButton.icon(
+                    onPressed: saving ? null : save,
+                    icon: saving ? const SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.save_outlined),
+                    label: const Text('Save Profile'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> save() async {
+    if (!formKey.currentState!.validate()) return;
+    setState(() => saving = true);
+    try {
+      await AppScope.read(context).updateProfile(name.text.trim(), profilePictureUrl.text.trim(), currency);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile updated')));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
+    } finally {
+      if (mounted) setState(() => saving = false);
+    }
+  }
+}
+
 class _ReportsPageState extends State<ReportsPage> {
   late Future<DashboardData> future;
 
@@ -720,6 +852,13 @@ class ApiClient {
   }
 
   Future<UserDto> me() async => UserDto.fromJson(await get('/api/users/me'));
+  Future<UserDto> updateProfile(String name, String profilePictureUrl, String currency) async {
+    return UserDto.fromJson(await put('/api/users/me', {
+      'name': name,
+      'profilePictureUrl': profilePictureUrl,
+      'currency': currency,
+    }));
+  }
   Future<SummaryDto> summary() async => SummaryDto.fromJson(await get('/api/reports/summary'));
   Future<List<MonthlyDto>> monthly() async => (await getList('/api/reports/monthly')).map(MonthlyDto.fromJson).toList();
   Future<List<CategorySpendDto>> categorySpending() async => (await getList('/api/reports/categories')).map(CategorySpendDto.fromJson).toList();
@@ -774,13 +913,20 @@ class AuthResponseDto {
 }
 
 class UserDto {
-  UserDto({required this.id, required this.name, required this.email, required this.currency});
+  UserDto({required this.id, required this.name, required this.email, required this.currency, this.profilePictureUrl});
   final String id;
   final String name;
   final String email;
   final String currency;
+  final String? profilePictureUrl;
 
-  factory UserDto.fromJson(dynamic json) => UserDto(id: json['id'], name: json['name'], email: json['email'], currency: json['currency'] ?? 'USD');
+  factory UserDto.fromJson(dynamic json) => UserDto(
+        id: json['id'],
+        name: json['name'],
+        email: json['email'],
+        currency: json['currency'] ?? 'USD',
+        profilePictureUrl: json['profilePictureUrl'],
+      );
 }
 
 class CategoryDto {
@@ -992,9 +1138,28 @@ class TransactionListTile extends StatelessWidget {
       onTap: onTap,
       contentPadding: const EdgeInsets.symmetric(horizontal: 4),
       leading: CircleAvatar(backgroundColor: parseColor(item.category.color), child: Icon(income ? Icons.arrow_downward : Icons.arrow_upward, color: Colors.white)),
-      title: Text(item.title, style: const TextStyle(fontWeight: FontWeight.w700)),
-      subtitle: Text('${item.category.name} · ${DateFormat.yMMMd().format(item.date)}'),
-      trailing: trailing ?? Text(money(item.amount, AppScope.of(context).user?.currency), style: TextStyle(color: income ? Colors.green : Colors.orange, fontWeight: FontWeight.w800)),
+      title: Text(
+        item.title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(fontWeight: FontWeight.w700),
+      ),
+      subtitle: Text(
+        '${item.category.name} · ${DateFormat.yMMMd().format(item.date)}',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      trailing: trailing ??
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 112),
+            child: Text(
+              money(item.amount, AppScope.of(context).user?.currency),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.end,
+              style: TextStyle(color: income ? Colors.green : Colors.orange, fontWeight: FontWeight.w800),
+            ),
+          ),
     );
   }
 }

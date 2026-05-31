@@ -1,0 +1,9 @@
+.env
+backend/.env
+frontend/.env
+mobile/.env
+target/
+dist/
+node_modules/
+.dart_tool/
+build/
