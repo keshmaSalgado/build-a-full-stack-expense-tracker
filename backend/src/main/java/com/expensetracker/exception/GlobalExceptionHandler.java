@@ -2,6 +2,7 @@ package com.expensetracker.exception;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
@@ -42,6 +43,13 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleDuplicateKey(DuplicateKeyException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(new ErrorResponse(Instant.now(), 409, "Conflict", "A record with the same unique value already exists", Map.of()));
+    }
+
+    @ExceptionHandler(DataAccessException.class)
+    public ResponseEntity<ErrorResponse> handleDataAccess(DataAccessException ex) {
+        log.error("Database access error", ex);
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(new ErrorResponse(Instant.now(), 503, "Service Unavailable", "Database connection failed. Check MONGODB_URI and database network access.", Map.of()));
     }
 
     @ExceptionHandler(Exception.class)

@@ -6,7 +6,10 @@ import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-const apiBaseUrl = String.fromEnvironment('API_URL', defaultValue: 'http://10.0.2.2:8080');
+const apiBaseUrl = String.fromEnvironment(
+  'API_URL',
+  defaultValue: 'https://backendofmyexpensetracker.onrender.com',
+);
 
 void main() {
   runApp(const ExpenseTrackerMobile());
